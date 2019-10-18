@@ -1,0 +1,6 @@
+C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\bin\Debug\F2ATool.exe.config
+C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.csprojResolveAssemblyReference.cache
+C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\bin\Debug\F2ATool.exe
+C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\bin\Debug\F2ATool.pdb
+C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.exe
+C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.pdb

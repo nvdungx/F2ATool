@@ -1,0 +1,17 @@
+!Requirement
+Input: source code
+Output: Activity Diagram display source code (file extension ? png, jpg, vsdx, xlsx, docx, ...)
+
+!How to
+1. Parse the source code
+2. File which contain data from parser (json, xml, yaml)
+3. Drawing from data file (shall has existed component: box, line,...)
+
+!Used tool/language
+1. Programming language: Python, C#
+2. Library (python lib or .NET dll)
+3. 
+
+
+
+
