@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "F2ATool", "F2ATool\F2ATool.csproj", "{7CE638A8-5F74-4EDE-83B5-807F9BC20762}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "F2ATool", "F2ATool\F2ATool.csproj", "{DFDEE92B-4B00-426F-B2B1-8CA2D75068E8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{7CE638A8-5F74-4EDE-83B5-807F9BC20762}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7CE638A8-5F74-4EDE-83B5-807F9BC20762}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7CE638A8-5F74-4EDE-83B5-807F9BC20762}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7CE638A8-5F74-4EDE-83B5-807F9BC20762}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFDEE92B-4B00-426F-B2B1-8CA2D75068E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFDEE92B-4B00-426F-B2B1-8CA2D75068E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFDEE92B-4B00-426F-B2B1-8CA2D75068E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFDEE92B-4B00-426F-B2B1-8CA2D75068E8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
