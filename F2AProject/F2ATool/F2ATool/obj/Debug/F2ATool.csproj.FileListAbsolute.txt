@@ -7,3 +7,12 @@ C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\obj\Deb
 C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.exe
 C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.pdb
 C:\Users\NDY3HC\Desktop\Project\03_ATT\02_F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.Form1.resources
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\bin\Debug\F2ATool.exe.config
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\bin\Debug\F2ATool.exe
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\bin\Debug\F2ATool.pdb
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.csprojAssemblyReference.cache
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.Form1.resources
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.Properties.Resources.resources
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.csproj.GenerateResource.cache
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.exe
+D:\Tool\Workspace\github\F2A\F2AProject\F2ATool\F2ATool\obj\Debug\F2ATool.pdb
