@@ -91,7 +91,7 @@ void Sample_3(void) //+30 Point
 	while (i < 8)
 	{
 		array[i] += 1;
-		i++;
+		i++; 
 	}
 
 	do

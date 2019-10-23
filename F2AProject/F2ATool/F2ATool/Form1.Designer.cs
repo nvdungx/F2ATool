@@ -74,9 +74,9 @@
       this.checkBox_generate.AutoSize = true;
       this.checkBox_generate.Location = new System.Drawing.Point(536, 60);
       this.checkBox_generate.Name = "checkBox_generate";
-      this.checkBox_generate.Size = new System.Drawing.Size(92, 17);
+      this.checkBox_generate.Size = new System.Drawing.Size(96, 17);
       this.checkBox_generate.TabIndex = 3;
-      this.checkBox_generate.Text = "Generate json";
+      this.checkBox_generate.Text = "Generate temp";
       this.checkBox_generate.UseVisualStyleBackColor = true;
       // 
       // comboBox_output
@@ -134,6 +134,8 @@
       this.Controls.Add(this.button_parse);
       this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
       this.KeyPreview = true;
+      this.MaximumSize = new System.Drawing.Size(652, 124);
+      this.MinimumSize = new System.Drawing.Size(652, 124);
       this.Name = "Form1";
       this.Text = "F2ATool";
       this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.Form1_KeyPress);
