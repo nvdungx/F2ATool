@@ -22,7 +22,7 @@ namespace F2ATool
     const string st_func_name = @"\b(\w+)[\s\t]*\(";
     public string name;
     public string return_type;
-    public Dictionary<string,string> input_arg;
+    public List<string>[] input_arg;
     public uint[] coord;
     public SortedDictionary<uint, string> norm_statement;
     public SortedDictionary<uint, CParserBranch> branch_statement;
@@ -31,7 +31,9 @@ namespace F2ATool
     {
       name = "";
       return_type = "";
-      input_arg = new Dictionary<string, string>();
+      input_arg = new List<string>[2];
+      input_arg[0] = new List<string>();
+      input_arg[1] = new List<string>();
       coord = new uint[2];
       norm_statement = new SortedDictionary<uint, string>();
       branch_statement = new SortedDictionary<uint, CParserBranch>();
@@ -46,7 +48,7 @@ namespace F2ATool
       tempArg = mReg.Match(instring).Groups[0].Value;
       return_type = instring.Split(new string[] { name },StringSplitOptions.None)[0];
       tempArg = instring.Split(new string[] { tempArg }, StringSplitOptions.None)[1];
-      mReg = new Regex(@"[\s\t]*\)[\s\t]*{");
+      mReg = new Regex(@"[\s\t]*\)[\s\t]*{?");
       tempArg = mReg.Split(tempArg)[0];
       listArg = tempArg.Split(',');
       foreach (var item in listArg)
@@ -72,7 +74,8 @@ namespace F2ATool
           }
           para_name = temp3[temp3.Count - 1].Value;
         }
-        input_arg.Add(para_type, para_name);
+        input_arg[0].Add(para_type);
+        input_arg[1].Add(para_name);
       }
     }
   }
@@ -163,7 +166,6 @@ namespace F2ATool
     public bool Parse_Data()
     {
       bool sts_return = false;
-      string remove_com_str;
       //new data available => parse
       if (flag_updated == true)
       {
@@ -181,13 +183,17 @@ namespace F2ATool
           bool valid_target = false;
           bool multline_cmt_flag = false;
           bool statement_end = false;
+          // variable used to track in sub function
           bool detect_func = false;
+          bool macro_detect = false;
+          bool detect_block = false;
           while ((line = streamReader.ReadLine()) != null)
           {
             line_count++;
             target_string = "";
-            if (line != "")
+            if ((string.IsNullOrEmpty(line) == false) && (string.IsNullOrWhiteSpace(line) == false))
             {
+              valid_target = false;
               if (multline_cmt_flag == false)
               {
                 _strip_comment(ref line);
@@ -205,7 +211,6 @@ namespace F2ATool
               }
               else
               {
-                valid_target = false;
                 _strip_comment(ref line);
                 if (_check_multline_cmt_end(ref line) == true)
                 {
@@ -228,24 +233,36 @@ namespace F2ATool
               if (valid_target)
               {
                 // check statement in target_string
-                if (true == _check_statement(target_string, ref statement_end))
+                if (true == _check_statement(ref target_string, ref statement_end, ref macro_detect))
                 {
                   if (statement_end == true)
                   {
-                    current_statement = current_statement + target_string;
+                    current_statement = current_statement + " " + target_string;
+                    current_statement = current_statement.Trim();
                     // process a completed statement
-                    _process_statement(current_statement, line_count, ref detect_func);
-                    current_statement = "";
+                    _process_statement(current_statement, line_count, ref detect_func, ref statement_end, ref detect_block);
+                    if (statement_end == true)
+                    {
+                      current_statement = "";
+                    }
+                    else
+                    {
+                      // statement not end yet, do nothing
+                    }
                   }
                   else
                   {
-                    current_statement = current_statement + target_string;
+                    current_statement = current_statement + " " + target_string;
                   }
                 }
                 else
                 {
-                  current_statement = "";
+                  // do nothing on macro line
                 }
+              }
+              else
+              {
+                // do nothing on empty string after remove comment
               }
             }
             else
@@ -262,29 +279,106 @@ namespace F2ATool
       }
       return sts_return;
     }
-    private void _process_statement(string statement, UInt32 line_number, ref bool func_start)
+    private void _process_statement(string statement, UInt32 line_number, ref bool func_start, ref bool statement_end, ref bool block_start)
     {
       if (func_start == false)
       {
         // global statement
         if (statement.Last<char>() == ';')
         {
-          // statement out side of function >> global declaration
-          // >> store to 1 list
-          GlobalStatement.Add(line_number, statement);
+          if (block_start == true)
+          {
+            // check if close block exit
+            Regex mReg = new Regex(@".*}[^;]*;");
+            if (mReg.IsMatch(statement))
+            {
+              block_start = false;
+              statement_end = true;
+              GlobalStatement.Add(line_number, statement);
+            }
+            else
+            {
+              block_start = true;
+              statement_end = false;
+            }
+          }
+          else
+          {
+            GlobalStatement.Add(line_number, statement);
+          }
         }
-        // start of function
+        // this could be either start of function or start of block defintion(array,struct ..)
         else if (statement.Last<char>() == '{')
         {
-          CParserFunction newFunc = new CParserFunction();
-          // set start row of function
-          newFunc.coord[0] = line_number;
-          // get name, input parameters, return type of function
-          newFunc.process_function_name(statement);
-          // add function to list
-          ParseFuncList.Add(newFunc);
-          // notify flag function begin from this line
-          func_start = true;
+          if (block_start == false)
+          {
+            Regex mReg = new Regex(@"[^{}=();]+\([^=;<>]+\)[\s\t]*{");
+            if (mReg.IsMatch(statement))
+            {
+              CParserFunction newFunc = new CParserFunction();
+              // set start row of function
+              newFunc.coord[0] = line_number;
+              // get name, input parameters, return type of function
+              newFunc.process_function_name(statement);
+              // add function to list
+              ParseFuncList.Add(newFunc);
+              // notify flag function begin from this line
+              func_start = true;
+              statement_end = true;
+              block_start = false;
+            }
+            else
+            {
+              block_start = true;
+              statement_end = false;
+            }
+          }
+          else
+          {
+            block_start = true;
+            statement_end = false;
+          }
+        }
+        // end of block code with out function start
+        // check if exist function else warning syntax error of code >> warning
+        else if (statement.Last<char>() == '}')
+        {
+          if (block_start == true)
+          {
+            // process function
+            block_start = true;
+            statement_end = false;
+          }
+          else
+          {
+            Regex mReg = new Regex(@"([^{}=();]+\([^=;<>]+\))[\s\t]*{([\s\S]*)}");
+            if (mReg.IsMatch(statement))
+            {
+              Match temp = mReg.Match(statement);
+              CParserFunction newFunc = new CParserFunction();
+              // set start row of function
+              newFunc.coord[0] = line_number;
+              // get name, input parameters, return type of function
+              newFunc.process_function_name(temp.Groups[1].Value);
+              // process statement in function string temp.Groups[2].Value;
+              //temp.Groups[2].Value;
+              // dumb case
+              // input code: all on same line void sampleFunction(void) { statement; statement{ statement;} statement;}
+              // process statement here
+
+
+              // add function to list
+              ParseFuncList.Add(newFunc);
+              func_start = false;
+              statement_end = true;
+              block_start = false;
+            }
+            else
+            {
+              block_start = true;
+              statement_end = false;
+            }
+          }
         }
         else
         {
@@ -297,6 +391,7 @@ namespace F2ATool
         // handle statement in function
         if (statement.Last<char>() == ';')
         {
+
         }
         // start of code block
         else if (statement.Last<char>() == '{')
@@ -307,6 +402,7 @@ namespace F2ATool
         else if (statement.Last<char>() == '}')
         {
 
+          func_start = false;
         }
         else
         {
@@ -314,33 +410,66 @@ namespace F2ATool
         }
       }
     }
-    private bool _check_statement(string instring, ref bool statement_end)
+    private bool _check_statement(ref string instring, ref bool statement_end, ref bool macro_flag)
     {
       bool result;
+      instring = instring.Trim();
       char endlinechar = instring.Last<char>();
-      if (instring.First<char>() != '#')
+      if (macro_flag == false)
       {
-        if ((endlinechar == ';') || (endlinechar == '{') || (endlinechar == '}'))
+        if (instring.First<char>() != '#')
         {
-          // end of statement
-          statement_end = true;
+          if ((endlinechar == ';') || (endlinechar == '{') || (endlinechar == '}'))
+          {
+            // end of statement
+            statement_end = true;
+          }
+          else if (endlinechar == '\\')
+          {
+            instring = instring.TrimEnd('\\');
+            instring = instring.Trim();
+            statement_end = false;
+          }
+          else
+          {
+            statement_end = false;
+          }
+          result = true;
         }
         else
         {
-          statement_end = false;
+          if (endlinechar == '\\')
+          {
+            macro_flag = true;
+            statement_end = false;
+          }
+          else
+          {
+            macro_flag = false;
+            statement_end = true;
+          }
+          result = false;
         }
-        result = true;
       }
       else
       {
+        if (endlinechar == '\\')
+        {
+          macro_flag = true;
+          statement_end = false;
+        }
+        else
+        {
+          macro_flag = false;
+          statement_end = true;
+        }
         result = false;
       }
       return result;
     }
     private bool _check_valid_string(string instring)
     {
-      Regex mReg = new Regex(@"\r\n[\s\t]*\r\n");
-      if ((instring == "") || mReg.IsMatch(instring))
+      if ((string.IsNullOrEmpty(instring) == true) || (string.IsNullOrWhiteSpace(instring) == true))
       {
         return false;
       }
@@ -372,22 +501,6 @@ namespace F2ATool
       {
         instring = mReg.Split(instring)[0];
         result = true;
-      }
-      else
-      {
-        result = false;
-      }
-      return result;
-    }
-    private bool _check_inline_cmt(ref string instring)
-    {
-      bool result;
-      Regex mReg = new Regex(@"[\s\t]*\/\/");
-      Match matchedReg = mReg.Match(instring);
-      if (matchedReg.Success == true)
-      {
-        result = true;
-        instring = matchedReg.Groups[0].Value;
       }
       else
       {
