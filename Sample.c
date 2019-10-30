@@ -24,7 +24,8 @@ void Sample_3(void);
 */
 void Sample_1(void) //+10 Point
 {
-	void (*fn)(void) = 0;
+	void (*fn) \
+  (void) = 0;
 	int a = 0;
 	int b = 1;
 

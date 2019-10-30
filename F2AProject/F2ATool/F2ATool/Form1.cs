@@ -152,7 +152,7 @@ namespace F2ATool
               temp_parser.full_name = item.ToString();
               temp_parser.name = Path.GetFileName(item.ToString());
               temp_parser.last_modified = temp_time;
-              temp_parser.raw_data = File.ReadAllText(item.ToString());
+              //temp_parser.raw_data = File.ReadAllText(item.ToString());
               CParser_List.Add(temp_parser);
             }
             else
@@ -162,7 +162,7 @@ namespace F2ATool
                 int ele_index;
                 ele_index = CParser_List.FindIndex(ele => ele.full_name == item.ToString());
                 CParser_List[ele_index].last_modified = temp_time;
-                CParser_List[ele_index].raw_data = File.ReadAllText(item.ToString());
+                //CParser_List[ele_index].raw_data = File.ReadAllText(item.ToString());
               }
             }
           }
