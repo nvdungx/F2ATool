@@ -22,7 +22,8 @@ void Sample_3(void);
 * Function Definitions
 **********************************************************************************************************************
 */
-void Sample_1(void) //+10 Point
+void Samp-
+le_1(void) //+10 Point
 {
 	void (*fn) \
   (void) = 0;
