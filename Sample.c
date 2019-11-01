@@ -22,8 +22,11 @@ void Sample_3(void);
 * Function Definitions
 **********************************************************************************************************************
 */
+uint8 temp[3] = {{1,2}, {4,5}, 4,8};
+void tempFunc(void){int a = 10; while(a>1){a--;}}
+
 void Samp-
-le_1(void) //+10 Point
+l-e_1(void) //+10 Point
 {
 	void (*fn) \
   (void) = 0;
