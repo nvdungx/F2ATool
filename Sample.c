@@ -23,10 +23,15 @@ void Sample_3(void);
 **********************************************************************************************************************
 */
 uint8 temp[3] = {{1,2}, {4,5}, 4,8};
-void tempFunc(void){int a = 10; while(a>1){a--;}}
+void tempFunc(void){
+  int a = 10;
+  printf("asdd; asad\" { 22}");
+  while(a>1){
+    a--;
+    }
+    }
 
-void Samp-
-l-e_1(void) //+10 Point
+void Sample1(void) //+10 Point
 {
 	void (*fn) \
   (void) = 0;
@@ -64,23 +69,23 @@ void Sample_2(int a) //+20 Point
 		b = a;
 	}
 
-	switch(a)
-	{
-		case 0:
-			b = 5;
-			break;
-		case 10:
-			b = 25;
-			break;
-		case 20:
-			b = 50;
-			break;
-		case 30:
-		case 40:
-		default:
-			b++;
-			break;
-	}
+	// switch(a)
+	// {
+		// case 0:
+			// b = 5;
+			// break;
+		// case 10:
+			// b = 25;
+			// break;
+		// case 20:
+			// b = 50;
+			// break;
+		// case 30:
+		// case 40:
+		// default:
+			// b++;
+			// break;
+	// }
 }
 
 void Sample_3(void) //+30 Point
