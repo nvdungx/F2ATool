@@ -15,7 +15,9 @@ namespace F2ATool
   public partial class Form1 : Form
   {
     private List<CParser> CParser_List;
+    private CDraw Draw;
     OpenFileDialog openFILE;
+    //Microsoft.Office.Interop.Visio.Application newVisio;
     public Form1()
     {
       InitializeComponent();
@@ -32,6 +34,8 @@ namespace F2ATool
       openFILE.Title = "Import C source files";
       openFILE.Multiselect = true;
       openFILE.RestoreDirectory = true;
+      //newVisio = new Microsoft.Office.Interop.Visio.Application();
+      Draw = new CDraw();
     }
 
     private void button_parse_Click(object sender, EventArgs e)
@@ -182,24 +186,27 @@ namespace F2ATool
           this.label_process_file.Text = item.name;
           if(item.Parse_Data() == true)
           {
-            MessageBox.Show("Updated data is parsed");
+            //Draw.set_InputFile(item);
+            //Draw.set_App(newVisio);
+            //Draw.draw_function();
+            //MessageBox.Show("Updated data is parsed");
           }
           else
           {
-            MessageBox.Show("Data is not updated");
+            //MessageBox.Show("Data is not updated");
           }
         }
         //this.label_process_file.Visible = false;
         #endregion
         // 4. Output the parsed data to temp file if checkbox selected
-        if (this.checkBox_generate.CheckState == CheckState.Checked)
-        {
-          MessageBox.Show("Generated temp file");
-        }
-        else
-        {
-          // pass
-        }
+        //if (this.checkBox_generate.CheckState == CheckState.Checked)
+        //{
+        //  MessageBox.Show("Generated temp file");
+        //}
+        //else
+        //{
+        //  // pass
+        //}
         // 5. Process draw data
         //CDraw
 

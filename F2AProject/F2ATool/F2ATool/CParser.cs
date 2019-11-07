@@ -33,11 +33,11 @@ namespace F2ATool
   {
     const string st_func_name = @"\b(\w+)[\s\t]*\(";
 
-    const string st_if_inline = @"^[\s\t]*if[\s\t]*\((.+?)\)[\s\t]+([^{]+;)$";
-    const string st_while_inline = @"^[\s\t]*while[\s\t]*\((.+?)\)[\s\t]+([^{]+;)$";
-    const string st_do_inline = @"^[\s\t]*do([\s\t]+)([^{]+;)$";
-    const string st_else_inline = @"^[\s\t]*else([\s\t]+)([^{]+;)$";
-    const string st_elseif_inline = @"^[\s\t]*else[\s\t]+if[\s\t]*\((.+?)\)[\s\t]+([^{]+;)$";
+    const string st_if_inline = @"^[\s\t]*if[\s\t]*\((.+?)\)[\s\t]*(.*;)$";
+    const string st_while_inline = @"^[\s\t]*while[\s\t]*\((.+?)\)[\s\t]*(.*;)$";
+    const string st_do_inline = @"^[\s\t]*do([\s\t]+)(.*;)$";
+    const string st_else_inline = @"^[\s\t]*else([\s\t]+)(.*;)$";
+    const string st_elseif_inline = @"^[\s\t]*else[\s\t]+if[\s\t]*\((.+?)\)[\s\t]*(.*;)$";
 
     const string st_if_block = @"^[\s\t]*if[\s\t]*\((.+)\)[\s\t]*{[\s\t]*$";
     const string st_else_block = @"^[\s\t]*else([\s\t]*){[\s\t]*$";
@@ -49,6 +49,7 @@ namespace F2ATool
     string block_string;
     bool block_flag;
     uint block_num;
+    uint element_count;
 
     public bool open_brace;
     public bool close_brace;
@@ -63,6 +64,7 @@ namespace F2ATool
     //public string raw_data { get; set; }
     public CParserFunction()
     {
+      element_count = 0;
       block_string = "";
       block_flag = false;
       block_num = 0;
@@ -151,7 +153,8 @@ namespace F2ATool
         this.block_string += instring;
         if (this.block_flag == false)
         {
-          this.statement_list.Add(line_count, this.block_string);
+          this.statement_list.Add(this.element_count, this.block_string);
+          this.element_count++;
           this.block_string = "";
         }
         result = true;
@@ -169,14 +172,15 @@ namespace F2ATool
               return_flag = parse_branch_semicolon(instring, ref output_st, ref type_br);
               if (return_flag == true)
               {
-                result = add_function_branch(output_st, type_br);
+                result = add_function_branch(output_st, type_br, line_count);
                 break;
               }
             }
           }
           if (return_flag == false)
           {
-            this.statement_list.Add(line_count, instring);
+            this.statement_list.Add(this.element_count, instring);
+            this.element_count++;
             result = true;
           }
         }
@@ -194,49 +198,467 @@ namespace F2ATool
               return_flag = parse_branch_semicolon(instring, ref output_st, ref type_br);
               if (return_flag == true)
               {
-                result = add_sub_branch(output_st, type_br);
+                result = add_sub_branch(output_st, type_br, line_count);
                 break;
               }
             }
           }
           if (return_flag == false)
           {
-            this.current_active_branch.sub_statement_list.Add(line_count, instring);
+            if (Regex.IsMatch(instring, @"^[\s\t]*break[\s\t]*;$"))
+            {
+              if (this.current_active_branch.type == branch_type.CASE)
+              {
+                this.current_active_branch.close_brace = true;
+                this.brace_depth--;
+                this.current_active_branch.sub_statement_list.Add(this.element_count, instring);
+                this.element_count++;
+                if (brace_depth == 0)
+                {
+                  this.current_active_branch = null;
+                }
+                else
+                {
+                  this.current_active_branch = this.current_active_branch.parent_branch;
+                }
+              }
+            }
+            else
+            {
+              this.current_active_branch.sub_statement_list.Add(this.element_count, instring);
+              this.element_count++;
+            }
             result = true;
           }
         }
       }
       return result;
     }
-    private bool add_function_branch(string[] string_arr, branch_type rtbranch)
+    private bool add_function_branch(string[] string_arr, branch_type rtbranch, UInt32 line_num)
     {
+      CParserBranch tempBranch;
       bool result = true;
+      tempBranch = new CParserBranch(null);
+      tempBranch.branch_depth = this.brace_depth;
+      tempBranch.open_brace = true;
+      tempBranch.close_brace = false;
+      tempBranch.coord[0] = this.element_count;
+      tempBranch.parent_branch = null;
+      tempBranch.type = rtbranch;
+      switch (rtbranch)
+      {
+        case branch_type.IF:
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          this.branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+          this.element_count++;
+          result = true;
+          break;
+        case branch_type.ELSE:
+          if (this.branch_list.Count > 0)
+          {
+            if (((this.branch_list.Values.Last<CParserBranch>().type == branch_type.IF)
+              || (this.branch_list.Values.Last<CParserBranch>().type == branch_type.ELSE_IF))
+              && (this.branch_list.Values.Last<CParserBranch>().close_brace == true))
+            {
+              tempBranch.close_brace = true;
+              tempBranch.coord[1] = this.element_count + 1;
+              tempBranch.name = string_arr[0];
+              this.branch_list.Add(this.element_count, tempBranch);
+              this.element_count++;
+              this.branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+              this.element_count++;
+              result = true;
+            }
+            else
+            {
+              result = false;
+            }
+          }
+          else
+          {
+            // no branch exist but and else is first >> error
+            result = false;
+          }
+          break;
+        case branch_type.ELSE_IF:
+          if (this.branch_list.Count > 0)
+          {
+            if ((this.branch_list.Values.Last<CParserBranch>().type == branch_type.IF)
+              && (this.branch_list.Values.Last<CParserBranch>().close_brace == true))
+            {
+              tempBranch.close_brace = true;
+              tempBranch.coord[1] = this.element_count + 1;
+              tempBranch.name = string_arr[0];
+              this.branch_list.Add(this.element_count, tempBranch);
+              this.element_count++;
+              this.branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+              this.element_count++;
+              result = true;
+            }
+            else
+            {
+              result = false;
+            }
+          }
+          else
+          {
+            // no branch exist but and else is first >> error
+            result = false;
+          }
+          break;
+        case branch_type.DO_WHILE:
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          this.branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+          this.element_count++;
+          result = true;
+          break;
+        case branch_type.WHILE:
+          if (string_arr[1].Trim() == ";")
+          {
+            if (this.branch_list.Values.Last<CParserBranch>().type == branch_type.DO_WHILE)
+            {
+              this.branch_list.Values.Last<CParserBranch>().name = string_arr[0];
+              result = true;
+            }
+          }
+          if (result == false)
+          {
+            tempBranch.close_brace = true;
+            tempBranch.coord[1] = this.element_count + 1;
+            tempBranch.name = string_arr[0];
+            this.branch_list.Add(this.element_count, tempBranch);
+            this.element_count++;
+            this.branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+            this.element_count++;
+            result = true;
+          }
+          break;
+        case branch_type.FOR:
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          this.branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+          this.element_count++;
+          result = true;
+          break;
+        case branch_type.SWITCH:
+          // add switch
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          this.branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+
+          // add case to switch
+          tempBranch = new CParserBranch(null);
+          tempBranch.branch_depth = this.brace_depth+1;
+          tempBranch.open_brace = true;
+          tempBranch.close_brace = false;
+          tempBranch.coord[0] = this.element_count + 1;
+          tempBranch.parent_branch = this.branch_list.Values.Last<CParserBranch>();
+          tempBranch.type = branch_type.CASE;
+          tempBranch.name = string_arr[1];
+          this.branch_list.Values.Last<CParserBranch>().sub_branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.current_active_branch = this.branch_list.Values.Last<CParserBranch>().sub_branch_list.Values.Last<CParserBranch>();
+          this.brace_depth++;
+
+          if (Regex.IsMatch(string_arr[2], @"^[\s\t]*break[\s\t]*;$"))
+          {
+            if (this.current_active_branch.type == branch_type.CASE)
+            {
+              this.current_active_branch.close_brace = true;
+              this.brace_depth--;
+              this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[2]);
+              this.element_count++;
+              if (brace_depth == 0)
+              {
+                this.current_active_branch = null;
+              }
+              else
+              {
+                this.current_active_branch = this.current_active_branch.parent_branch;
+              }
+            }
+          }
+          else
+          {
+            this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[2]);
+            this.element_count++;
+          }
+          result = true;
+          break;
+        case branch_type.CASE:
+          if ((this.current_active_branch != null) && (this.current_active_branch.type == branch_type.SWITCH))
+          {
+            tempBranch = new CParserBranch(null);
+            tempBranch.branch_depth = this.brace_depth;
+            tempBranch.open_brace = true;
+            tempBranch.close_brace = false;
+            tempBranch.coord[0] = this.element_count;
+            tempBranch.parent_branch = this.branch_list.Values.Last<CParserBranch>();
+            tempBranch.type = branch_type.CASE;
+            MatchCollection matches = Regex.Matches(string_arr[0], @"[\s\t]*case([^:]+):");
+            string temp = "";
+            for (int i = 0; i < matches.Count; i++)
+            {
+              temp += matches[i].Groups[1].Value + ",";
+            }
+            tempBranch.name = temp;
+            this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_branch_list.Add(this.element_count, tempBranch);
+            this.element_count++;
+            this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_branch_list.Values.Last<CParserBranch>();
+            this.brace_depth++;
+            if (Regex.IsMatch(string_arr[1], @"^[\s\t]*break[\s\t]*;$"))
+            {
+              if (this.current_active_branch.type == branch_type.CASE)
+              {
+                this.current_active_branch.close_brace = true;
+                this.brace_depth--;
+                this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[1]);
+                this.element_count++;
+                if (brace_depth == 0)
+                {
+                  this.current_active_branch = null;
+                }
+                else
+                {
+                  this.current_active_branch = this.current_active_branch.parent_branch;
+                }
+              }
+            }
+            else
+            {
+              this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[1]);
+              this.element_count++;
+            }
+            result = true;
+          }
+          else
+          {
+            result = false;
+          }
+          break;
+        default:
+          break;
+      }
       return result;
     }
-    private bool add_sub_branch(string[] string_arr, branch_type rtbranch)
+    private bool add_sub_branch(string[] string_arr, branch_type rtbranch, UInt32 line_num)
     {
+      CParserBranch tempBranch;
       bool result = true;
-      // CASE HAS to be inside (sub branch of switch)
-      /*if (this.brace_depth == 0)
+      tempBranch = new CParserBranch(null);
+      tempBranch.branch_depth = this.brace_depth;
+      tempBranch.open_brace = true;
+      tempBranch.close_brace = false;
+      tempBranch.coord[0] = this.element_count;
+      tempBranch.parent_branch = null;
+      tempBranch.type = rtbranch;
+      switch (rtbranch)
       {
-        result = false;
-      }
-      // block code inside blockcode
-      else
-      {
-        if (this.current_active_branch.type == branch_type.SWITCH)
-        {
-          this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
-          this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
-          this.brace_depth++;
+        case branch_type.IF:
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          tempBranch.parent_branch = this.current_active_branch;
+          this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+          this.element_count++;
           result = true;
-        }
-        else
-        {
-          // active branch has to be a switch
-          result = false;
-        }
-      }*/
+          break;
+        case branch_type.ELSE:
+          if (this.current_active_branch.sub_branch_list.Count > 0)
+          {
+            if (((this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().type == branch_type.IF)
+              || (this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().type == branch_type.ELSE_IF))
+              && (this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().close_brace == true))
+            {
+              tempBranch.close_brace = true;
+              tempBranch.coord[1] = this.element_count + 1;
+              tempBranch.name = string_arr[0];
+              tempBranch.parent_branch = this.current_active_branch;
+              this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+              this.element_count++;
+              this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+              this.element_count++;
+              result = true;
+            }
+            else
+            {
+              result = false;
+            }
+          }
+          else
+          {
+            // no branch exist but and else is first >> error
+            result = false;
+          }
+          break;
+        case branch_type.ELSE_IF:
+          if (this.current_active_branch.sub_branch_list.Count > 0)
+          {
+            if ((this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().type == branch_type.IF)
+              && (this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().close_brace == true))
+            {
+              tempBranch.close_brace = true;
+              tempBranch.coord[1] = this.element_count + 1;
+              tempBranch.name = string_arr[0];
+              tempBranch.parent_branch = this.current_active_branch;
+              this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+              this.element_count++;
+              this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+              this.element_count++;
+              result = true;
+            }
+            else
+            {
+              result = false;
+            }
+          }
+          else
+          {
+            // no branch exist but and else is first >> error
+            result = false;
+          }
+          break;
+        case branch_type.DO_WHILE:
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          tempBranch.parent_branch = this.current_active_branch;
+          this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+          this.element_count++;
+          result = true;
+          break;
+        case branch_type.WHILE:
+          if (string_arr[1].Trim() == ";")
+          {
+            if (this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().type == branch_type.DO_WHILE)
+            {
+              this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().name = string_arr[0];
+              result = true;
+            }
+          }
+          if (result == false)
+          {
+            tempBranch.close_brace = true;
+            tempBranch.coord[1] = this.element_count + 1;
+            tempBranch.name = string_arr[0];
+            tempBranch.parent_branch = this.current_active_branch;
+            this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+            this.element_count++;
+            this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+            this.element_count++;
+            result = true;
+          }
+          break;
+        case branch_type.FOR:
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          tempBranch.parent_branch = this.current_active_branch;
+          this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_statement_list.Add(this.element_count, string_arr[1]);
+          this.element_count++;
+          result = true;
+          break;
+        case branch_type.SWITCH:
+          // add switch
+          tempBranch.close_brace = true;
+          tempBranch.coord[1] = this.element_count + 1;
+          tempBranch.name = string_arr[0];
+          tempBranch.parent_branch = this.current_active_branch;
+          this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+
+          // add case to switch
+          tempBranch = new CParserBranch(null);
+          tempBranch.branch_depth = this.brace_depth + 1;
+          tempBranch.open_brace = true;
+          tempBranch.close_brace = false;
+          tempBranch.coord[0] = this.element_count + 1;
+          tempBranch.parent_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
+          tempBranch.type = branch_type.CASE;
+          tempBranch.name = string_arr[1];
+          this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_branch_list.Add(this.element_count, tempBranch);
+          this.element_count++;
+          this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().sub_branch_list.Values.Last<CParserBranch>();
+          this.brace_depth++;
+
+          if (Regex.IsMatch(string_arr[2], @"^[\s\t]*break[\s\t]*;$"))
+          {
+            if (this.current_active_branch.type == branch_type.CASE)
+            {
+              this.current_active_branch.close_brace = true;
+              this.brace_depth--;
+              this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[2]);
+              this.element_count++;
+              this.current_active_branch = this.current_active_branch.parent_branch;
+            }
+          }
+          else
+          {
+            this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[2]);
+            this.element_count++;
+          }
+          result = true;
+          break;
+        case branch_type.CASE:
+          if ((this.current_active_branch != null) && (this.current_active_branch.type == branch_type.SWITCH))
+          {
+            tempBranch = new CParserBranch(null);
+            tempBranch.branch_depth = this.brace_depth;
+            tempBranch.open_brace = true;
+            tempBranch.close_brace = false;
+            tempBranch.coord[0] = this.element_count + 1;
+            tempBranch.parent_branch = this.current_active_branch;
+            tempBranch.type = branch_type.CASE;
+            tempBranch.name = string_arr[0];
+            this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+            this.element_count++;
+            this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
+            this.brace_depth++;
+            if (Regex.IsMatch(string_arr[1], @"^[\s\t]*break[\s\t]*;$"))
+            {
+              if (this.current_active_branch.type == branch_type.CASE)
+              {
+                this.current_active_branch.close_brace = true;
+                this.brace_depth--;
+                this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[1]);
+                this.element_count++;
+                this.current_active_branch = this.current_active_branch.parent_branch;
+              }
+            }
+            else
+            {
+              this.current_active_branch.sub_statement_list.Add(this.element_count, string_arr[1]);
+              this.element_count++;
+            }
+            result = true;
+          }
+          else
+          {
+            result = false;
+          }
+          break;
+        default:
+          break;
+      }
       return result;
     }
     private bool parse_branch_semicolon(string instring, ref string[] output, ref branch_type rtbranch)
@@ -266,14 +688,14 @@ namespace F2ATool
       // case 3
       if (rst == false)
       {
-        mReg = new Regex(@"[\s\t]*for[\s\t]*\((.*;)");
+        mReg = new Regex(@"^[\s\t]*for[\s\t]*\((.*)\)([^;]*;)$");
         matchGroup = mReg.Match(instring);
         if (matchGroup.Success == true)
         {
           // notify back this is for loop-> looking for next required data before process
           rtbranch = branch_type.FOR;
           output[0] = matchGroup.Groups[1].Value;
-          output[1] = "";
+          output[1] = matchGroup.Groups[2].Value;
           rst = true;
         }
         else
@@ -304,7 +726,7 @@ namespace F2ATool
             }
             else
             {
-              mReg = new Regex(@"[\s\t]*case(.*):(.+;)");
+              mReg = new Regex(@"[\s\t]*(case.*):(.+;)");
               matchGroup = mReg.Match(instring);
               if (matchGroup.Success == true)
               {
@@ -334,7 +756,7 @@ namespace F2ATool
         tempBranch.branch_depth = this.brace_depth;
         tempBranch.open_brace = true;
         tempBranch.close_brace = false;
-        tempBranch.coord[0] = line_count;
+        tempBranch.coord[0] = this.element_count;
         tempBranch.name = branch_content;
         tempBranch.parent_branch = null;
         tempBranch.type = block_type;
@@ -345,7 +767,8 @@ namespace F2ATool
               // new block code
               if (this.brace_depth == 0)
               {
-                this.branch_list.Add(line_count, tempBranch);
+                this.branch_list.Add(this.element_count, tempBranch);
+                this.element_count++;
                 this.current_active_branch = this.branch_list.Values.Last<CParserBranch>();
                 this.brace_depth++;
               }
@@ -353,7 +776,8 @@ namespace F2ATool
               else
               {
                 tempBranch.parent_branch = this.current_active_branch;
-                this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                this.element_count++;
                 this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                 brace_depth++;
               }
@@ -371,7 +795,8 @@ namespace F2ATool
                     || (this.branch_list.Values.Last<CParserBranch>().type == branch_type.ELSE_IF))
                     && (this.branch_list.Values.Last<CParserBranch>().close_brace == true))
                   {
-                    this.branch_list.Add(line_count, tempBranch);
+                    this.branch_list.Add(this.element_count, tempBranch);
+                    this.element_count++;
                     this.current_active_branch = this.branch_list.Values.Last<CParserBranch>();
                     this.brace_depth++;
                     result = true;
@@ -397,7 +822,8 @@ namespace F2ATool
                     && (this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().close_brace == true))
                   {
                     tempBranch.parent_branch = this.current_active_branch;
-                    this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                    this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                    this.element_count++;
                     this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                     this.brace_depth++;
                     result = true;
@@ -425,7 +851,8 @@ namespace F2ATool
                   if ((this.branch_list.Values.Last<CParserBranch>().type == branch_type.IF)
                     && (this.branch_list.Values.Last<CParserBranch>().close_brace == true))
                   {
-                    this.branch_list.Add(line_count, tempBranch);
+                    this.branch_list.Add(this.element_count, tempBranch);
+                    this.element_count++;
                     this.current_active_branch = this.branch_list.Values.Last<CParserBranch>();
                     this.brace_depth++;
                     result = true;
@@ -450,7 +877,8 @@ namespace F2ATool
                     && (this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>().close_brace == true))
                   {
                     tempBranch.parent_branch = this.current_active_branch;
-                    this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                    this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                    this.element_count++;
                     this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                     this.brace_depth++;
                     result = true;
@@ -476,7 +904,8 @@ namespace F2ATool
               // new block code
               if (this.brace_depth == 0)
               {
-                this.branch_list.Add(line_count, tempBranch);
+                this.branch_list.Add(this.element_count, tempBranch);
+                this.element_count++;
                 this.current_active_branch = this.branch_list.Values.Last<CParserBranch>();
                 this.brace_depth++;
                 result = true;
@@ -485,7 +914,8 @@ namespace F2ATool
               else
               {
                 tempBranch.parent_branch = this.current_active_branch;
-                this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                this.element_count++;
                 this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                 brace_depth++;
                 result = true;
@@ -502,7 +932,8 @@ namespace F2ATool
                   Regex tempReg = new Regex(@"[\s\t]*switch[\s\t]*\((.+)\)[\s\t]*case(.+):{");
                   tempBranch.name = tempReg.Match(instring).Groups[1].Value;
                   tempBranch.close_brace = true;
-                  this.branch_list.Add(line_count, tempBranch);
+                  this.branch_list.Add(this.element_count, tempBranch);
+                  this.element_count++;
                   this.brace_depth++;
                   this.current_active_branch = this.branch_list.Values.Last<CParserBranch>();
 
@@ -510,18 +941,20 @@ namespace F2ATool
                   tempBranch.branch_depth = this.brace_depth;
                   tempBranch.open_brace = true;
                   tempBranch.close_brace = false;
-                  tempBranch.coord[0] = line_count;
+                  tempBranch.coord[0] = this.element_count;
                   tempBranch.name = tempReg.Match(instring).Groups[2].Value;
                   tempBranch.parent_branch = this.current_active_branch;
                   tempBranch.type = branch_type.CASE;
-                  this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                  this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                  this.element_count++;
                   this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                   this.brace_depth++;
                   result = true;
                 }
                 else
                 {
-                  this.branch_list.Add(line_count, tempBranch);
+                  this.branch_list.Add(this.element_count, tempBranch);
+                  this.element_count++;
                   this.current_active_branch = this.branch_list.Values.Last<CParserBranch>();
                   this.brace_depth++;
                   result = true;
@@ -535,7 +968,8 @@ namespace F2ATool
                   Regex tempReg = new Regex(@"[\s\t]*switch[\s\t]*\((.+)\)[\s\t]*case(.+):{");
                   tempBranch.name = tempReg.Match(instring).Groups[1].Value;
                   tempBranch.close_brace = true;
-                  this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                  this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                  this.element_count++;
                   this.brace_depth++;
                   this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
 
@@ -543,11 +977,12 @@ namespace F2ATool
                   tempBranch.branch_depth = this.brace_depth;
                   tempBranch.open_brace = true;
                   tempBranch.close_brace = false;
-                  tempBranch.coord[0] = line_count;
+                  tempBranch.coord[0] = this.element_count;
                   tempBranch.name = tempReg.Match(instring).Groups[2].Value;
                   tempBranch.parent_branch = this.current_active_branch;
                   tempBranch.type = branch_type.CASE;
-                  this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                  this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                  this.element_count++;
                   this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                   this.brace_depth++;
                   result = true;
@@ -555,7 +990,8 @@ namespace F2ATool
                 else
                 {
                   tempBranch.parent_branch = this.current_active_branch;
-                  this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                  this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                  this.element_count++;
                   this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                   brace_depth++;
                   result = true;
@@ -575,7 +1011,8 @@ namespace F2ATool
               {
                 if (this.current_active_branch.type == branch_type.SWITCH)
                 {
-                  this.current_active_branch.sub_branch_list.Add(line_count, tempBranch);
+                  this.current_active_branch.sub_branch_list.Add(this.element_count, tempBranch);
+                  this.element_count++;
                   this.current_active_branch = this.current_active_branch.sub_branch_list.Values.Last<CParserBranch>();
                   this.brace_depth++;
                   result = true;
@@ -696,7 +1133,7 @@ namespace F2ATool
         if (this.branch_list.Count == 0)
         {
           this.close_brace = true;
-          this.coord[1] = line_count;
+          this.coord[1] = this.element_count;
           rst = true;
         }
         else
@@ -706,7 +1143,7 @@ namespace F2ATool
             if (this.close_brace == false)
             {
               this.close_brace = true;
-              this.coord[1] = line_count;
+              this.coord[1] = this.element_count;
               rst = true;
             }
             else
@@ -717,7 +1154,7 @@ namespace F2ATool
           else
           {
             this.current_active_branch.close_brace = true;
-            this.current_active_branch.coord[1] = line_count;
+            this.current_active_branch.coord[1] = this.element_count;
             this.brace_depth--;
             rst = true;
             if (this.current_active_branch.parent_branch != null)
@@ -787,7 +1224,7 @@ namespace F2ATool
   // input source file name = 
   // 1. output vsdx file name (each function flowchart shall be in 1 sheet)
   // or 2. folder name (each function flowchart shall be an image)
-  class CParser : IEquatable<CParser>
+  class CParser : IEquatable<CParser> 
   {
     List<string> warning_log;
     string st_outside_func;
@@ -796,6 +1233,7 @@ namespace F2ATool
     bool detect_func;
     bool detect_block;
     UInt32 number_brace;
+    bool statement_end;
     public string name { get; set; }
     public string full_name { get; set; }
     // last modified change => new data is import =>  update the notify flag for parser function
@@ -810,14 +1248,14 @@ namespace F2ATool
       }
     }
     private bool flag_updated;
-    SortedDictionary<UInt32, string> GlobalStatement;
-    List<CParserFunction> ParseFuncList;
-    CDraw Draw;
+    public SortedDictionary<UInt32, string> GlobalStatement;
+    public List<CParserFunction> ParseFuncList;
     //public string raw_data { get; set; }
 
     // Constructor
     public CParser()
     {
+      statement_end = false;
       number_brace = 0;
       detect_func = false;
       detect_block = false;
@@ -830,11 +1268,9 @@ namespace F2ATool
       warning_log = new List<string>();
       ParseFuncList = new List<CParserFunction>();
       GlobalStatement = new SortedDictionary<UInt32, string>();
-      Draw = new CDraw();
       //raw_data = "";
       flag_updated = false;
     }
-
     // delegate for checkexist of CParser with same full_name : IEquatable<CParser>
     public bool Equals(CParser other)
     {
@@ -860,14 +1296,12 @@ namespace F2ATool
           string current_statement = "";
           bool valid_target = false;
           bool multline_cmt_flag = false;
-          bool statement_end = false;
           // variable used as global scrope to track in sub function _process_statement since no static in function allowed.
           // could move to private properties
           bool macro_detect = false;
           while ((line = streamReader.ReadLine()) != null)
           {
             txt_line++;
-            current_line++;
             target_string = "";
             if ((string.IsNullOrEmpty(line) == false) && (string.IsNullOrWhiteSpace(line) == false))
             {
@@ -929,7 +1363,14 @@ namespace F2ATool
                     }
                     else
                     {
-                      current_statement = "";
+                      if (this.statement_end == false)
+                      {
+                        current_statement = current_statement + " " + target_string;
+                      }
+                      else
+                      {
+                        current_statement = "";
+                      }
                     }
                   }
                   else
@@ -990,13 +1431,30 @@ namespace F2ATool
       {
         arr_len--;
       }
-      if (Regex.IsMatch(instring, @"[\s\t]*for[\s\t]*\(.*\)[\s\t]*{[\s\t]*"))
+      if (instring.Contains("for"))
       {
-        return_result = _process_open_brace(instring, ref warning_msg);
-        // warning message could be record for output log file later
-        if (return_result == false)
+        if (Regex.IsMatch(instring, @"^[\s\t]*for[\s\t]*\(.*\)[\s\t]*{[\s\t]*$"))
         {
-          warning_log.Add(warning_msg);
+          return_result = _process_open_brace(instring, ref warning_msg);
+          // warning message could be record for output log file later
+          if (return_result == false)
+          {
+            warning_log.Add(warning_msg);
+          }
+        }
+        else if (Regex.IsMatch(instring, @"^[\s\t]*for[\s\t]*\((.*?)\)[\s\t]*([^;]*;)$"))
+        {
+          return_result = _process_semicolon(instring, ref warning_msg);
+          // warning message could be record for output log file later
+          if (return_result == false)
+          {
+            warning_log.Add(warning_msg);
+          }
+        }
+        else
+        {
+          this.statement_end = false;
+          return_result = true;
         }
       }
       else
@@ -1104,6 +1562,7 @@ namespace F2ATool
             ParseFuncList.Add(newFunc);
             // notify flag function begin from this line
             this.detect_func = true;
+            this.current_line = 0;
             this.detect_block = false;
             result_return = true;
           }

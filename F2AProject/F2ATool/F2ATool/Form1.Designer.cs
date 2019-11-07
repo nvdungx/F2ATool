@@ -78,6 +78,7 @@
       this.checkBox_generate.TabIndex = 3;
       this.checkBox_generate.Text = "Generate temp";
       this.checkBox_generate.UseVisualStyleBackColor = true;
+      this.checkBox_generate.Visible = false;
       // 
       // comboBox_output
       // 

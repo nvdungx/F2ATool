@@ -69,23 +69,23 @@ void Sample_2(int a) //+20 Point
 		b = a;
 	}
 
-	// switch(a)
-	// {
-		// case 0:
-			// b = 5;
-			// break;
-		// case 10:
-			// b = 25;
-			// break;
-		// case 20:
-			// b = 50;
-			// break;
-		// case 30:
-		// case 40:
-		// default:
-			// b++;
-			// break;
-	// }
+	switch(a)
+	{
+		case 0:
+			b = 5;
+			break;
+		case 10:
+			b = 25;
+			break;
+		case 20:
+			b = 50;
+			break;
+		case 30:
+		case 40:
+		default:
+			b++;
+			break;
+	}
 }
 
 void Sample_3(void) //+30 Point
